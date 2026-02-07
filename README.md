@@ -3,10 +3,10 @@
 
   
 ## Team Members:
-  * Kim Yumin (3036050611)
-  * Kim Suhan (3036037401)
-  * Shim Eunseop (3036106197)
-  * Choi Woohyun (3036103224)
+  * Kim Yumin 
+  * Kim Suhan 
+  * Shim Eunseop 
+  * Choi Woohyun 
 
 ### How to Play
 1.	Compile the program and run the executable.
