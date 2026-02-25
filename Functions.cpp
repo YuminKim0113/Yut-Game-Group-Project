@@ -1,4 +1,4 @@
-//For aesthetic purpose, and including libraries and other files
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -9,6 +9,10 @@
 #include <ctime>
 #include <algorithm>
 #include <limits>
+#include <array>
+#include <unordered_map>
+#include <random>
+#include <cctype>
 #include "Functions.h"
 #include "Map.h"
 #include "Player.h"
@@ -24,11 +28,63 @@
 #define BROWN "\033[0;33m"
 using namespace std;
 
-//Welcoming players with ASCII art
+namespace {
+
+bool TryParsePositiveInt(const std::string &s, int &out) {
+    if (s.empty()) return false;
+    for (char ch : s) {
+        if (!std::isdigit(static_cast<unsigned char>(ch))) return false;
+    }
+    try {
+        out = std::stoi(s);
+    } catch (...) {
+        return false;
+    }
+    return out > 0;
+}
+
+using Pattern = std::array<std::array<const char *, 3>, 3>;
+
+const std::unordered_map<std::string, Pattern> &MalPatterns() {
+    static const std::unordered_map<std::string, Pattern> k = {
+
+        {"A1",   {{{"A","1","A"},{"1"," ","1"},{"A","1","A"}}}},
+        {"A2",   {{{"A","2","A"},{"2"," ","2"},{"A","2","A"}}}},
+        {"A3",   {{{"A","3","A"},{"3"," ","3"},{"A","3","A"}}}},
+        {"A12",  {{{"A","1","2"},{"1"," ","A"},{"A","2","1"}}}},
+        {"A13",  {{{"A","1","3"},{"1"," ","A"},{"A","3","1"}}}},
+        {"A23",  {{{"A","2","3"},{"2"," ","A"},{"A","3","2"}}}},
+        {"A123", {{{"A","1","2"},{"3"," ","3"},{"2","1","A"}}}},
+
+        {"B1",   {{{"B","1","B"},{"1"," ","1"},{"B","1","B"}}}},
+        {"B2",   {{{"B","2","B"},{"2"," ","2"},{"B","2","B"}}}},
+        {"B3",   {{{"B","3","B"},{"3"," ","3"},{"B","3","B"}}}},
+        {"B12",  {{{"B","1","2"},{"1"," ","B"},{"B","2","1"}}}},
+        {"B13",  {{{"B","1","3"},{"1"," ","B"},{"B","3","1"}}}},
+        {"B23",  {{{"B","2","3"},{"2"," ","B"},{"B","3","2"}}}},
+        {"B123", {{{"B","1","2"},{"3"," ","3"},{"2","1","B"}}}},
+    };
+    return k;
+}
+
+bool FillMalPattern(const std::string &malSign, std::string out[3][3]) {
+    auto it = MalPatterns().find(malSign);
+    if (it == MalPatterns().end()) return false;
+
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            out[i][j] = it->second[i][j];
+        }
+    }
+    return true;
+}
+
+}
+
 void WelcomeText(){
     cout << "\033[1m";
-    cout<<RED<<" _    _        _                                       _   "<<endl;       
-    cout<<RED<<"| |  | |      | |                                     | |  "<<endl;       
+    cout<<RED<<" _    _        _                                       _   "<<endl;
+    cout<<RED<<"| |  | |      | |                                     | |  "<<endl;
     cout<<YELLOW<<"| |  | |  ___ | |  ___   ___   _ __ ___    ___        | |_   ___  "<<endl;
     cout<<YELLOW<<"| |/\\| | / _ \\| | / __| / _ \\ | '_ ` _ \\  / _ \\       | __| / _ \\ "<<endl;
     cout<<GREEN<<"\\  /\\  /|  __/| || (__ | (_) || | | | | ||  __/       | |_ | (_) |"<<endl;
@@ -41,7 +97,7 @@ void WelcomeText(){
     cout<<MAGENTA<<"   \\_/   \\___/   \\_/   \\____/\\_| |_/\\_|  |_/\\____/ (_)(_)"<<endl;
     cout << "\033[0m";
 }
-// Indication of the end of game
+
 void EndingText(){
     cout << "\033[1m";
     cout<<RED<<" _____                             _         _       _   _               _" << endl;
@@ -55,7 +111,6 @@ void EndingText(){
     cout << "\033[0m";
 }
 
-// Breif explanation of the game 
 void gameRuleText(){
     cout << "Yutnori is a traditional Korean board game that has been played for hundreds of years. " << endl;
     cout << "It is a game that involves strategy, luck, and skill. The game is played on a square board " << endl;
@@ -82,12 +137,8 @@ void gameRuleText(){
 
 }
 
-
-// Purpose: This function prints out a string to the console character by character, with a delay between each character, to simulate the effect of typing.
-// Inputs: string outputText - the text to be printed to the console with the typing effect.
-// Outputs: No return value. However, it prints out the input text to the console with the typing effect.
 void typingEffect(string outputText){
-    cout << "\033[1m"; 
+    cout << "\033[1m";
     for (int i = 0; i < outputText.length(); i++) {
         char c = outputText[i];
         cout << c << flush;
@@ -96,9 +147,6 @@ void typingEffect(string outputText){
     cout << "\033[0m";
 }
 
-// Purpose: This function checks if a given game name (filename) already exists in the "Games.txt" file. If not, it appends the new game name to the file.
-// Inputs: string filename - the name of the game to be saved.
-// Outputs: No return value. However, it may modify "Games.txt" file by appending a new game name.
 void saveGameName(string filename){
     ifstream inFile("Games.txt");
     bool fileExists = false;
@@ -130,9 +178,6 @@ void saveGameName(string filename){
     outFile.close();
 }
 
-// Purpose: This function calculates and returns the total number of saved games by reading the "Games.txt" file.
-// Inputs: None.
-// Outputs: int - the total number of saved games. If the file cannot be opened or there is an error, it returns 0.
 int Get_Number_of_Saved_Games(){
     ifstream inFile;
     inFile.open("Games.txt");
@@ -154,9 +199,6 @@ int Get_Number_of_Saved_Games(){
     return count;
 }
 
-// Purpose: This function reads game names from the "Games.txt" file and displays them on the console.
-// Inputs: None.
-// Outputs: No return value. However, it prints out the game names stored in the "Games.txt" file.
 void loadGameNames(){
     ifstream inFile;
     inFile.open("Games.txt");
@@ -182,9 +224,6 @@ void loadGameNames(){
     cout << endl;
 }
 
-// Purpose: This function saves the current state of the game into a file, including the players' names, and the status of each of their 'Mal' objects.
-// Inputs: string filename - the name of the file to save the game state to. Map gameMap - the current state of the game map. Player player1 - the first player in the game. Player player2 - the second player in the game.
-// Outputs: No return value. However, it creates/modifies a file with the given filename and saves the current game state into it.
 void save_game(string filename, Map gameMap, Player player1, Player player2) {
     ofstream outFile;
     outFile.open((filename + ".txt").c_str());
@@ -194,11 +233,9 @@ void save_game(string filename, Map gameMap, Player player1, Player player2) {
         return;
     }
 
-    // Save players' names and counter
     outFile << player1.getName() << endl;
     outFile << player2.getName() << endl;
 
-    // Saving player1 data
     for (int i = 1; i <= 3; i++) {
         outFile << i << endl;
         outFile << player1.getMal(i).row << endl;
@@ -208,8 +245,6 @@ void save_game(string filename, Map gameMap, Player player1, Player player2) {
         outFile << player1.getMal(i).carried << endl;
     }
 
-
-    // Saving player2 data
     for (int i = 1; i <= 3; i++) {
         outFile << i << endl;
         outFile << player2.getMal(i).row << endl;
@@ -218,217 +253,203 @@ void save_game(string filename, Map gameMap, Player player1, Player player2) {
         outFile << player2.getMal(i).finished << endl;
         outFile << player2.getMal(i).carried << endl;
     }
-    
+
     outFile.close();
     cout << "Game saved successfully." << endl;
-    //Need to be finished
+
 }
 
-// Purpose: This function loads game data from a specified file, including players' names, 'Mal' data, and updates the game map.
-// Inputs: string filename - the name of the file to load game data from.
-//         Map &gameMap - reference to the game map to update.
-//         Player &player1, &player2 - references to the player objects to load data into.
-//         int &loadfailed - reference to an integer flag that is set to 1 if loading the game fails.
-// Outputs: No return value. However, it modifies the input Map and Player objects by loading data into them from the file. If the file cannot be opened, it sets the 'loadfailed' flag to 1.
 void load_game(string filename, Map &gameMap, Player &player1, Player &player2, int &loadfailed) {
-    ifstream inFile;
-    inFile.open((filename + ".txt").c_str());
+    ifstream inFile((filename + ".txt").c_str());
 
     if (inFile.fail()) {
         cout << "Invalid input or Error in opening file." << endl;
         loadfailed = 1;
         return;
     }
-    
-    string player1Name, player2Name;
-    int malNum, row, column;
-    bool can_finish, finished, carried;
-    int can_finish_int, finished_int, carried_int;
 
-    // Load players' names and counter
-    inFile >> player1Name >> player2Name;
+    string player1Name, player2Name;
+    getline(inFile, player1Name);
+    getline(inFile, player2Name);
+
+    if (player1Name.empty() && !inFile.eof()) getline(inFile, player1Name);
+    if (player2Name.empty() && !inFile.eof()) getline(inFile, player2Name);
+
+    if (player1Name.empty() || player2Name.empty()) {
+        cout << "Save file is corrupted (missing player names)." << endl;
+        loadfailed = 1;
+        return;
+    }
+
     player1.setName(player1Name);
     player2.setName(player2Name);
 
-    // Load player1 data
+    int malNum = 0, row = 0, column = 0;
+    int can_finish_int = 0, finished_int = 0, carried_int = 0;
+
     for (int i = 1; i <= 3; i++) {
-        inFile >> malNum >> row >> column >> can_finish_int >> finished_int >> carried_int;
+        if (!(inFile >> malNum >> row >> column >> can_finish_int >> finished_int >> carried_int)) {
+            cout << "Save file is corrupted (player 1 mal data)." << endl;
+            loadfailed = 1;
+            return;
+        }
 
-        can_finish = static_cast<bool>(can_finish_int);
-        finished = static_cast<bool>(finished_int);
-        carried = static_cast<bool>(carried_int);
-
-        player1.setMal(malNum, row, column, can_finish, finished, carried);
+        player1.setMal(
+            malNum,
+            row,
+            column,
+            static_cast<bool>(can_finish_int),
+            static_cast<bool>(finished_int),
+            static_cast<bool>(carried_int)
+        );
     }
 
-    for (int i = 1; i<=3; i++){
-        gameMap.addPlayerLocation(player1.getMal(i).row, player1.getMal(i).column, 0, i);
-    }
-
-
-    // Load player2 data
     for (int i = 1; i <= 3; i++) {
-        inFile >> malNum >> row >> column >> can_finish_int >> finished_int >> carried_int;
+        if (!(inFile >> malNum >> row >> column >> can_finish_int >> finished_int >> carried_int)) {
+            cout << "Save file is corrupted (player 2 mal data)." << endl;
+            loadfailed = 1;
+            return;
+        }
 
-        can_finish = static_cast<bool>(can_finish_int);
-        finished = static_cast<bool>(finished_int);
-        carried = static_cast<bool>(carried_int);
-
-        player2.setMal(malNum, row, column, can_finish, finished, carried);
+        player2.setMal(
+            malNum,
+            row,
+            column,
+            static_cast<bool>(can_finish_int),
+            static_cast<bool>(finished_int),
+            static_cast<bool>(carried_int)
+        );
     }
 
+    for (int i = 1; i <= 3; i++){
+        Mal m = player1.getMal(i);
+        if (m.can_finish && !m.finished) {
+            gameMap.addPlayerLocation(m.row, m.column, 0, i);
+        }
+    }
 
-     for (int i = 1; i<=3; i++){
-        gameMap.addPlayerLocation(player2.getMal(i).row, player2.getMal(i).column, 0, i);
+    for (int i = 1; i <= 3; i++){
+        Mal m = player2.getMal(i);
+        if (m.can_finish && !m.finished) {
+            gameMap.addPlayerLocation(m.row, m.column, 1, i);
+        }
     }
 
     inFile.close();
     cout << "Game loaded successfully." << endl;
 }
 
-
-// Purpose: This function allows the user to select a ticket from their ticket pool. If the player only has one ticket, it automatically selects it for them.
-// Inputs: vector<int> &tickets - a reference to a vector of integers representing the player's pool of tickets.
-// Outputs: int - the selected ticket. Also modifies the input vector by removing the selected ticket.
 int askWhichTicket(vector<int> &tickets){
-    bool valid_input = false;
-    string inputstr;
+    if (tickets.empty()) {
+        cout << "No tickets available." << endl;
+        return 0;
+    }
+
     if (tickets.size() == 1){
         cout << "You got " << getTicketName(tickets[0]) << " ticket." << endl;
         int ticket = tickets[0];
         tickets.clear();
         return ticket;
     }
-    int input = 0;
-    cout << endl;
-    cout << "You got " << tickets.size() << " moves." << endl;
-    for (int i = 0; i < tickets.size(); i++){
-        cout << i + 1 << ". " << getTicketName(tickets[i]) << "     ";
+
+    cout << "\nYou got " << tickets.size() << " moves.\n";
+    for (size_t i = 0; i < tickets.size(); i++){
+        cout << (i + 1) << ". " << getTicketName(tickets[i]) << "     ";
     }
-    cout << endl;
-    cout << "Please choose the Ticket you want to use: ";
-    while (!valid_input) {
-        cin >> inputstr;
-        
-        try {
-            input = stoi(inputstr);
-            
-            if (input < 1 || input > tickets.size()) {
-                cout << "Invalid input. Please input a proper number for ticket use." << endl;
-            } else {
-                valid_input = true;
-            }
-        } catch (...) {
-            cout << "Invalid input. Input must be an integer." << endl;
+    cout << "\nPlease choose the Ticket you want to use: ";
+
+    while (true) {
+        string inputStr;
+        if (!(cin >> inputStr)) {
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Invalid input. Please input a proper number for ticket use: ";
+            continue;
         }
-    }
 
-    int ticket = tickets[input-1];
-    tickets.erase(tickets.begin() + (input-1));
-    return ticket;
+        int choice = 0;
+        if (!TryParsePositiveInt(inputStr, choice)) {
+            cout << "Invalid input. Input must be a positive integer: ";
+            continue;
+        }
+        if (choice < 1 || static_cast<size_t>(choice) > tickets.size()) {
+            cout << "Invalid input. Please input a number between 1 and " << tickets.size() << ": ";
+            continue;
+        }
+
+        int ticket = tickets[choice - 1];
+        tickets.erase(tickets.begin() + (choice - 1));
+        return ticket;
+    }
 }
 
-// Purpose: This function allows the user to select a ticket from their ticket pool. If the player only has one ticket, it automatically selects it for them.
-// Inputs: vector<int> &tickets - a reference to a vector of integers representing the player's pool of tickets.
-// Outputs: int - the selected ticket. Also modifies the input vector by removing the selected ticket.
 vector<string> askMalMovement(int turn, Player one, Player two){
     vector<string> choices;
-    bool alreadyAdded = false;
 
-    if (turn == 0){
-        for (int i = 1; i <= 3; i++) {
-            alreadyAdded = false;
-            Mal currentMal = one.getMal(i);
-            
-            if (currentMal.finished) {
-                continue;
-            } else if (currentMal.carried) {
-                string prefix = "A" + to_string(i);
-                for (int j = i + 1; j <= 3; j++) {
-                    if (one.getMal(j).carried) {
-                        prefix += to_string(j);
-                    }
+    Player &current = (turn == 0) ? one : two;
+    const char prefix = (turn == 0) ? 'A' : 'B';
+
+    bool used[4] = {false, false, false, false};
+
+    for (int i = 1; i <= 3; ++i) {
+        if (used[i]) continue;
+
+        Mal mi = current.getMal(i);
+        if (mi.finished) continue;
+
+        vector<int> group;
+        group.push_back(i);
+        used[i] = true;
+
+        if (mi.can_finish) {
+            for (int j = i + 1; j <= 3; ++j) {
+                if (used[j]) continue;
+                Mal mj = current.getMal(j);
+                if (mj.finished) continue;
+
+                if (mj.can_finish && mj.row == mi.row && mj.column == mi.column) {
+                    group.push_back(j);
+                    used[j] = true;
                 }
-                for (int j = 0; j < choices.size(); j ++){
-                    for (int a= 0; a < choices[j].length(); a++){
-                        if (choices[j].substr(a,1) == to_string(i)){
-                            alreadyAdded = true;
-                        }
-                    }
-                }
-                if (!alreadyAdded){
-                    choices.push_back(prefix);
-                }
-            } else {
-                choices.push_back("A" + to_string(i));
             }
         }
-    } else {
-        for (int i = 1; i <= 3; i++) {
-            alreadyAdded = false;
-            Mal currentMal = two.getMal(i);
-            
-            if (currentMal.finished) {
-                continue;
-            } else if (currentMal.carried) {
-                string prefix = "B" + to_string(i);
-                for (int j = i + 1; j <= 3; j++) {
-                    if (two.getMal(j).carried) {
-                        prefix += to_string(j);
-                    }
-                }
-                for (int j = 0; j < choices.size(); j ++){
-                    for (int a= 0; a < choices[j].length(); a++){
-                        if (choices[j].substr(a,1) == to_string(i)){
-                            alreadyAdded = true;
-                        }
-                    }
-                }
-                if (!alreadyAdded){
-                    choices.push_back(prefix);
-                }
-            } else {
-                choices.push_back("B" + to_string(i));
-            }
-        }
-    }
-    
 
-    if (choices.size() == 1){
-        cout << "Which mal would you like to move?      " << "1. " << choices[0] << endl;
-    } else if (choices.size() == 2 ){
-        cout << "Which mal would you like to move?      " << "1. " << choices[0] << "      2. " << choices[1] << endl;
-    } else{
-        cout << "Which mal would you like to move?      " << "1. " << choices[0] << "      2. " << choices[1] << "      3. " << choices[2] << endl;
+        sort(group.begin(), group.end());
+
+        string sign;
+        sign.push_back(prefix);
+        for (int n : group) sign += to_string(n);
+
+        choices.push_back(sign);
     }
+
+    cout << "Which mal would you like to move?      ";
+    for (size_t i = 0; i < choices.size(); ++i) {
+        cout << (i + 1) << ". " << choices[i];
+        if (i + 1 < choices.size()) cout << "      ";
+    }
+    cout << endl;
+
     return choices;
 }
 
-// Purpose: Simulates the drawing of a random "ticket" with various rarities.
-// outputs: An integer representing the ticket. Higher numbers are rarer tickets.
 int getTicket(){
-    srand(time(NULL));
-    int randNum = rand() % 16 + 1;
-    if (randNum == 1)
-        return 5; //diamond
-    else if (randNum == 2)
-        return 4; //platinum
-    else if (randNum <= 6)
-        return 3; //gold
-    else if (randNum <= 12)
-        return 2; //silver
-    else if (randNum <= 16)
-        if ((rand() % 4 + 1) == 1)
-            return -1; //secret
-        return 1; //bronze
-    return 0;
+
+    static std::mt19937 rng(static_cast<unsigned>(
+        chrono::high_resolution_clock::now().time_since_epoch().count()
+    ));
+    uniform_int_distribution<int> dist16(1, 16);
+    int randNum = dist16(rng);
+
+    if (randNum == 1) return 5;
+    if (randNum == 2) return 4;
+    if (randNum <= 6) return 3;
+    if (randNum <= 12) return 2;
+
+    uniform_int_distribution<int> dist4(1, 4);
+    return (dist4(rng) == 1) ? -1 : 1;
 }
 
-// Purpose: This function translates a ticket number into a human-readable ticket name.
-// inputs: An integer representing the ticket. Higher numbers are rarer tickets.
-// ourputs: A string containing the name of the ticket.
 string getTicketName(int ticketNum){
     if (ticketNum == 5)
         return "Diamond";
@@ -444,430 +465,154 @@ string getTicketName(int ticketNum){
         return "Secret";
 }
 
-// Purpose: This function moves or carries a player's 'Mal' based on the 'malSign' value. It can move or carry 1, 2, or 3 'Mal' objects depending on the length of 'malSign'.
-// Inputs: Player &player - reference to the player whose 'Mal' will be moved or carried.
-//         int playerNum - the player number.
-//         string malSign - a string that represents the 'Mal' to be moved or carried. The length of this string determines the number of 'Mal' objects to be moved or carried.
-//         int TicketResult - the result of the ticket which determines how far a 'Mal' can move.
-//         Map &gameMap - reference to the game map.
-//         int pRow, pCol - the row and column of the player's current position.
-// Outputs: No return value. However, it modifies the input Player and Map objects by moving the 'Mal' and updating the game map.
 void move_or_carry_Mal(Player &player, int playerNum, string malSign, int TicketResult, Map &gameMap, int pRow, int pCol){
-    // If 'malSign' length is 2, move one 'Mal'
-    if (malSign.length() == 2){
-        player.moveMal(stoi(malSign.substr(1,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(1,1))), player.getCol(stoi(malSign.substr(1,1))), playerNum, stoi(malSign.substr(1,1)));
-    } 
-    // If 'malSign' length is 3, move two 'Mal's
-    else if (malSign.length() == 3){
-        player.moveMal(stoi(malSign.substr(1,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(1,1))), player.getCol(stoi(malSign.substr(1,1))), playerNum, stoi(malSign.substr(1,1)));
+    if (malSign.size() < 2) return;
 
-        player.moveMal(stoi(malSign.substr(2,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(2,1))), player.getCol(stoi(malSign.substr(2,1))), playerNum, stoi(malSign.substr(2,1)));
-    } 
-    // If 'malSign' length is more than 3, move three 'Mal's
-    else {
-        player.moveMal(stoi(malSign.substr(1,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(1,1))), player.getCol(stoi(malSign.substr(1,1))), playerNum, stoi(malSign.substr(1,1)));
+    for (size_t i = 1; i < malSign.size(); ++i) {
+        char ch = malSign[i];
+        if (!isdigit(static_cast<unsigned char>(ch))) continue;
 
-        player.moveMal(stoi(malSign.substr(2,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(2,1))), player.getCol(stoi(malSign.substr(2,1))), playerNum, stoi(malSign.substr(2,1)));
+        int malNum = ch - '0';
+        player.moveMal(malNum, TicketResult);
 
-        player.moveMal(stoi(malSign.substr(3,1)), TicketResult);
-        gameMap.UpdatePlayerLocation(pRow, pCol, player.getRow(stoi(malSign.substr(3,1))), player.getCol(stoi(malSign.substr(3,1))), playerNum, stoi(malSign.substr(3,1)));
+        gameMap.UpdatePlayerLocation(
+            pRow, pCol,
+            player.getRow(malNum), player.getCol(malNum),
+            playerNum, malNum
+        );
     }
 }
 
-// Purpose: Checks if an opponent's mal is present at the given location and, if so, kills the mal(s) and moves them back to the starting position.
-// Inputs: Map &gameMap - a reference to the game map object.
-//         Player &opponent - a reference to the opponent's Player object.
-//         int killerPlayerNum - the number of the player who may kill the mal (0 or 1).
-//         int row, int col - the row and column of the location to check for the opponent's mal.
-// Outputs: bool - returns true if any opponent mal(s) are killed, false otherwise.
 bool killMal(Map &gameMap, Player &opponent, int killerPlayerNum, int row, int col){
-    bool killFirst = false;
-    bool killSecond = false;
-    bool killThird = false;
+    Station st = gameMap.getPlayerLocation(row, col);
 
-    if (killerPlayerNum == 0){
-        if (gameMap.getPlayerLocation(row, col).Playertwo_first && !opponent.getMal(1).finished && opponent.getMal(1).can_finish){
-            killFirst = true;
+    auto opponentHere = [&](int malNum) -> bool {
+        if (killerPlayerNum == 0) {
+            if (malNum == 1) return st.Playertwo_first;
+            if (malNum == 2) return st.Playertwo_second;
+            return st.Playertwo_third;
+        } else {
+            if (malNum == 1) return st.Playerone_first;
+            if (malNum == 2) return st.Playerone_second;
+            return st.Playerone_third;
         }
-        if (gameMap.getPlayerLocation(row, col).Playertwo_second && !opponent.getMal(2).finished && opponent.getMal(2).can_finish){
-            killSecond = true;
-        }
-        if (gameMap.getPlayerLocation(row, col).Playertwo_third && !opponent.getMal(3).finished && opponent.getMal(3).can_finish){
-            killThird = true;
-        }
-    } else if (killerPlayerNum == 1){
-        if (gameMap.getPlayerLocation(row, col).Playerone_first && !opponent.getMal(1).finished && opponent.getMal(1).can_finish){
-            killFirst = true;
-        }
-        if (gameMap.getPlayerLocation(row, col).Playerone_second && !opponent.getMal(2).finished && opponent.getMal(2).can_finish){
-            killSecond = true;
-        }
-        if (gameMap.getPlayerLocation(row, col).Playerone_third && !opponent.getMal(3).finished && opponent.getMal(3).can_finish){
-            killThird = true;
+    };
+
+    vector<int> killed;
+    for (int malNum = 1; malNum <= 3; ++malNum) {
+        Mal m = opponent.getMal(malNum);
+        if (opponentHere(malNum) && !m.finished && m.can_finish) {
+            killed.push_back(malNum);
         }
     }
 
-    if (!killFirst && !killSecond && !killThird){
-        return false;
-    }
+    if (killed.empty()) return false;
 
     cout << RED << "You killed the opponent's mal number:";
+    const int opponentPlayerNum = (killerPlayerNum + 1) % 2;
 
-    if (killFirst){
-        gameMap.UpdatePlayerLocation(row, col, 6, 0, (killerPlayerNum + 1)%2, 1);
-        opponent.setRowCol(1,6,0);
-        opponent.set_cannot_finish(1);
-        opponent.set_not_Carried(1);
-        cout << RED << " 1";
-    }
-    if (killSecond){
-        gameMap.UpdatePlayerLocation(row, col, 6, 0, (killerPlayerNum + 1)%2, 2);
-        opponent.setRowCol(2,6,0);
-        opponent.set_cannot_finish(2);
-        opponent.set_not_Carried(2);
-        cout << RED << " 2";
-    }
-    if (killThird){
-        gameMap.UpdatePlayerLocation(row, col, 6, 0, (killerPlayerNum + 1)%2, 3);
-        opponent.setRowCol(3,6,0);
-        opponent.set_cannot_finish(3);
-        opponent.set_not_Carried(3);
-        cout << RED << " 3";
+    for (int malNum : killed) {
+        gameMap.UpdatePlayerLocation(row, col, 6, 0, opponentPlayerNum, malNum);
+        opponent.setRowCol(malNum, 6, 0);
+        opponent.set_cannot_finish(malNum);
+        opponent.set_not_Carried(malNum);
+        cout << RED << " " << malNum;
     }
 
     cout << "." << RESET << endl;
     return true;
 }
 
-// Purpose: To find and return a string of mals (game pieces) that can be carried by the mal (game piece) whose number is passed in the malSign string. 
-// Inputs: Reference to a Player object for whom to find the carried mals. A string 'malSign' which contains the sign of the mal in the first character and the number of the mal as the rest of the string.
-// Returns: A string 'malSign' which contains the sign of the mal in the first character and the numbers of the mals that can be carried as the rest of the string.
 string carriedMalNums(Player &player, string malSign){
-    int malNum = stoi(malSign.substr(1,1));
-    for (int i = 1; i <= 3; i++){
-        if (player.getMal(malNum).row == player.getMal(i).row &&  player.getMal(malNum).column == player.getMal(i).column && malNum != i && player.getMal(i).can_finish){
-            malSign += to_string(i);
+    if (malSign.size() < 2) return malSign;
+
+    int malNum = 0;
+    try {
+        malNum = stoi(malSign.substr(1, 1));
+    } catch (...) {
+        return malSign;
+    }
+
+    Mal base = player.getMal(malNum);
+
+    vector<int> group;
+    group.push_back(malNum);
+
+    if (base.can_finish && !base.finished) {
+        for (int i = 1; i <= 3; ++i) {
+            if (i == malNum) continue;
+            Mal other = player.getMal(i);
+            if (!other.can_finish || other.finished) continue;
+
+            if (other.row == base.row && other.column == base.column) {
+                group.push_back(i);
+            }
         }
     }
-    vector<int> malNums;
-    for (int i = 1; i< malSign.length(); i++){
-        malNums.push_back(stoi(malSign.substr(i,1)));
-    }
-    sort(malNums.begin(), malNums.end());
-    vector<int>::iterator duplicate = unique(malNums.begin(), malNums.end());
-    malNums.erase(duplicate, malNums.end());
-    string numString;
-    for (int i = 0; i < malNums.size(); i++){
-        numString += to_string(malNums[i]);
-    }
-    
-    malSign = malSign.substr(0,1) + numString;
 
-    return malSign;
+    sort(group.begin(), group.end());
+    group.erase(unique(group.begin(), group.end()), group.end());
+
+    string out;
+    out.push_back(malSign[0]);
+    for (int n : group) out += to_string(n);
+    return out;
 }
 
-// Purpose: Updates the game map to display the specified player's mal at the new position, and removes it from the previous position.
-// Inputs: Map &gameMap - a reference to the game map object.
-//         Player player - the Player object of the player whose mal is being moved.
-//         string malSign - a string representing the mal's unique identifier (e.g., "A1", "A2", "A3").
-//         int previRow, int previCol - the previous row and column of the mal's location.
-//         int row, int col - the new row and column of the mal's location.
-// Outputs: No return value. Display mals on the game graphic Array[3][3]
 void moveMalDisplay(Map &gameMap, Player player, string malSign, int previRow, int previCol, int row, int col){
-    if (malSign == "A1"){
-        string arrA1[3][3] = {
-            {"A", "1", "A"},
-            {"1", " ", "1"},
-            {"A", "1", "A"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA1, false);
+    (void)player;
+
+    string pattern[3][3];
+    if (!FillMalPattern(malSign, pattern)) {
+
+        return;
     }
-    
-    if (malSign == "A2"){
-        string arrA2[3][3] = {
-            {"A", "2", "A"},
-            {"2", " ", "2"},
-            {"A", "2", "A"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA2, false);
-    };
-   if (malSign == "A3"){
-        string arrA3[3][3] = {
-            {"A", "3", "A"},
-            {"3", " ", "3"},
-            {"A", "3", "A"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA3, false);
-    };
-   if (malSign == "A12"){
-        string arrA12[3][3] = {
-            {"A", "1", "2"},
-            {"1", " ", "A"},
-            {"A", "2", "1"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA12, false);
-    };
-   if (malSign == "A23"){
-        string arrA23[3][3] = {
-            {"A", "2", "3"},
-            {"2", " ", "A"},
-            {"A", "3", "2"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA23, false);
-    };
 
-   if (malSign == "A13"){
-        string arrA13[3][3] = {
-            {"A", "1", "3"},
-            {"1", " ", "A"},
-            {"A", "3", "1"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA13, false);
-    };
-   if (malSign == "A123"){
-        string arrA123[3][3] = {
-            {"A", "1", "2"},
-            {"3", " ", "3"},
-            {"2", "1", "A"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrA123, false);
-    };
-
-
-   if (malSign == "B1"){
-        string arrB1[3][3] = {
-            {"B", "1", "B"},
-            {"1", " ", "1"},
-            {"B", "1", "B"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB1, false);
-    };
-
-   if (malSign == "B2"){
-        string arrB2[3][3] = {
-            {"B", "2", "B"},
-            {"2", " ", "2"},
-            {"B", "2", "B"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB2, false);
-    };
-   if (malSign == "B3"){
-        string arrB3[3][3] = {
-            {"B", "3", "B"},
-            {"3", " ", "3"},
-            {"B", "3", "B"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB3, false);
-    };
-
-   if (malSign == "B12"){
-        string arrB12[3][3] = {
-            {"B", "1", "2"},
-            {"1", " ", "B"},
-            {"B", "2", "1"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB12, false);
-    };
-
-   if (malSign == "B23"){
-        string arrB23[3][3] = {
-            {"B", "2", "3"},
-            {"2", " ", "B"},
-            {"B", "3", "2"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB23, false);
-    };
-
-   if (malSign == "B13"){
-        string arrB13[3][3] = {
-            {"B", "1", "3"},
-            {"1", " ", "B"},
-            {"B", "3", "1"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB13, false);
-    };
-
-   if (malSign == "B123"){
-        string arrB123[3][3] = {
-            {"B", "1", "2"},
-            {"3", " ", "3"},
-            {"2", "1", "B"}
-            };
-        gameMap.moveMal(previRow, previCol, row, col, arrB123, false);
-    };
-
-
+    gameMap.moveMal(previRow, previCol, row, col, pattern, false);
 }
 
-
-// Purpose: Add mal display when loading the game
-// Inputs: Map &gameMap - a reference to the game map object.
-//         Player player1 - the Player object of player1 in the main
-//         Player player2 - the Player object of player2 in the main
-// Outputs: No return value. Add mal display to gameMap
 void addMalDisplay(Map &gameMap, Player player1, Player player2){
-    string arrA1[3][3] = {
-        {"A", "1", "A"},
-        {"1", " ", "1"},
-        {"A", "1", "A"}
-        };
-    string arrA2[3][3] = {
-        {"A", "2", "A"},
-        {"2", " ", "2"},
-        {"A", "2", "A"}
-        };
-    string arrA3[3][3] = {
-        {"A", "3", "A"},
-        {"3", " ", "3"},
-        {"A", "3", "A"}
-        };
-    string arrA12[3][3] = {
-        {"A", "1", "2"},
-        {"1", " ", "A"},
-        {"A", "2", "1"}
-        };
-    string arrA23[3][3] = {
-        {"A", "2", "3"},
-        {"2", " ", "A"},
-        {"A", "3", "2"}
-        };
-    string arrA13[3][3] = {
-        {"A", "1", "3"},
-        {"1", " ", "A"},
-        {"A", "3", "1"}
-        };
-    string arrA123[3][3] = {
-        {"A", "1", "2"},
-        {"3", " ", "3"},
-        {"2", "1", "A"}
-        };
-    string arrB1[3][3] = {
-        {"B", "1", "B"},
-        {"1", " ", "1"},
-        {"B", "1", "B"}
-        };
-    string arrB2[3][3] = {
-        {"B", "2", "B"},
-        {"2", " ", "2"},
-        {"B", "2", "B"}
-        };
-    string arrB3[3][3] = {
-        {"B", "3", "B"},
-        {"3", " ", "3"},
-        {"B", "3", "B"}
-        };
-    string arrB12[3][3] = {
-        {"B", "1", "2"},
-        {"1", " ", "B"},
-        {"B", "2", "1"}
-        };
-    string arrB23[3][3] = {
-        {"B", "2", "3"},
-        {"2", " ", "B"},
-        {"B", "3", "2"}
-        };
-    string arrB13[3][3] = {
-        {"B", "1", "3"},
-        {"1", " ", "B"},
-        {"B", "3", "1"}
-        };
-    string arrB123[3][3] = {
-        {"B", "1", "2"},
-        {"3", " ", "3"},
-        {"2", "1", "B"}
-        };
-    map<string, string[3][3]> malSign_to_malDisplay;
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A1"][i][j] = arrA1[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A2"][i][j] = arrA2[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A3"][i][j] = arrA3[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A12"][i][j] = arrA12[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A23"][i][j] = arrA23[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["A123"][i][j] = arrA123[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B1"][i][j] = arrB1[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B2"][i][j] = arrB2[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B3"][i][j] = arrB3[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B12"][i][j] = arrB12[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B23"][i][j] = arrB23[i][j];
-        }
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            malSign_to_malDisplay["B123"][i][j] = arrB123[i][j];
-        }
-    }
+    auto addForPlayer = [&](Player &p, char prefix) {
+        bool used[4] = {false, false, false, false};
 
-    if (player1.getMal(1).can_finish && !player1.getMal(1).finished){
-        gameMap.addMal(player1.getRow(1), player1.getCol(1), malSign_to_malDisplay[carriedMalNums(player1, "A1")]);
-    } 
-    if (player1.getMal(2).can_finish && !player1.getMal(2).finished){
-        gameMap.addMal(player1.getRow(2), player1.getCol(2), malSign_to_malDisplay[carriedMalNums(player1, "A2")]);
-    } 
-    if (player1.getMal(3).can_finish && !player1.getMal(3).finished) {
-        gameMap.addMal(player1.getRow(3), player1.getCol(3), malSign_to_malDisplay[carriedMalNums(player1, "A3")]);
-    }
+        for (int i = 1; i <= 3; ++i) {
+            if (used[i]) continue;
 
-    if (player2.getMal(1).can_finish && !player2.getMal(1).finished){
-        gameMap.addMal(player2.getRow(1), player2.getCol(1), malSign_to_malDisplay[carriedMalNums(player2, "B1")]);
-    } 
-    if (player2.getMal(2).can_finish && !player2.getMal(2).finished){
-        gameMap.addMal(player2.getRow(2), player2.getCol(2), malSign_to_malDisplay[carriedMalNums(player2, "B2")]);
-    } 
-    if (player2.getMal(3).can_finish && !player2.getMal(3).finished) {
-        gameMap.addMal(player2.getRow(3), player2.getCol(3), malSign_to_malDisplay[carriedMalNums(player2, "B3")]);
-    }
+            Mal mi = p.getMal(i);
+            if (!mi.can_finish || mi.finished) continue;
 
+            vector<int> group;
+            group.push_back(i);
+            used[i] = true;
+
+            for (int j = i + 1; j <= 3; ++j) {
+                if (used[j]) continue;
+                Mal mj = p.getMal(j);
+                if (!mj.can_finish || mj.finished) continue;
+
+                if (mj.row == mi.row && mj.column == mi.column) {
+                    group.push_back(j);
+                    used[j] = true;
+                }
+            }
+
+            sort(group.begin(), group.end());
+
+            string sign;
+            sign.push_back(prefix);
+            for (int n : group) sign += to_string(n);
+
+            string pattern[3][3];
+            if (FillMalPattern(sign, pattern)) {
+                gameMap.addMal(mi.row, mi.column, pattern);
+            }
+        }
+    };
+
+    addForPlayer(player1, 'A');
+    addForPlayer(player2, 'B');
 }
 
-// Purpose: to display the ticket players recieve
-// Inputs: number of moves avaliable for the player
-// Outputs: No return value. Ticket display how many numbers of moves are avaliable
 void displayTicket(int moves){
     if (moves == 4)
     {
@@ -884,7 +629,7 @@ void displayTicket(int moves){
         cout << CYAN << "└─────────┘\n\n";
         cout << endl;
     }
-    
+
     else if (moves == 3)
     {
         cout << YELLOW << "   _________ _________ _________ _________ " << RESET << "\n";
@@ -959,9 +704,6 @@ void displayTicket(int moves){
     cout << RESET << endl;
 }
 
-// Purpose: This function is used to print an explanation message based on the current position of the player on the game map.
-// Inputs: row is an integer representing the row number of the player's current position, and col is an integer representing the column number of the player's current position.
-// Outputs: This function does not return a value, but it prints a message to the console explaining the significance of the player's current position on the game map.
 void PrintExplain(int row, int col){
     if (row == 0 && col == 0)
     {
@@ -1080,3 +822,4 @@ void PrintExplain(int row, int col){
         cout << "You have arrived at Admiralty. It is a major commercial and financial hub in Hong Kong, and is home to many important government buildings, including the Central Government Complex and the Legislative Council Complex." << endl;
     }
 }
+
